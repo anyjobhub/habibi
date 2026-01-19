@@ -56,7 +56,7 @@ class FriendRequestCreate(BaseModel):
 
 class FriendRequestRespond(BaseModel):
     """Respond to a friend request"""
-    action: str = Field(..., regex=r'^(accept|reject)$')
+    action: str = Field(..., pattern=r'^(accept|reject)$')
     
     class Config:
         json_schema_extra = {

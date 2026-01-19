@@ -42,7 +42,7 @@ class UserProfile(BaseModel):
     avatar_url: Optional[str] = None
     
     # Mandatory fields for signup
-    mobile: str = Field(..., regex=r'^\+?[1-9]\d{9,14}$', description="Mobile number (unique, no OTP)")
+    mobile: str = Field(..., pattern=r'^\+?[1-9]\d{9,14}$', description="Mobile number (unique, no OTP)")
     address: str = Field(..., min_length=10, max_length=500, description="Full address")
     date_of_birth: date = Field(..., description="Date of birth (age validation required)")
     gender: Gender = Field(..., description="Gender")
@@ -103,7 +103,7 @@ class UserMetadata(BaseModel):
     """User metadata"""
     trust_score: int = Field(default=100, ge=0, le=100)
     is_banned: bool = False
-    account_status: str = Field(default="active", regex=r'^(active|suspended|deleted)$')
+    account_status: str = Field(default="active", pattern=r'^(active|suspended|deleted)$')
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -112,7 +112,7 @@ class User(BaseModel):
     """Complete user model"""
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     email: EmailStr = Field(..., description="Primary identifier (unique)")
-    username: str = Field(..., min_length=3, max_length=30, regex=r'^[a-zA-Z0-9_]+$', description="Unique username")
+    username: str = Field(..., min_length=3, max_length=30, pattern=r'^[a-zA-Z0-9_]+$', description="Unique username")
     
     profile: UserProfile
     privacy: UserPrivacy = Field(default_factory=UserPrivacy)
@@ -149,11 +149,11 @@ class User(BaseModel):
 class UserCreate(BaseModel):
     """Schema for creating a new user (after OTP verification)"""
     email: EmailStr
-    username: str = Field(..., min_length=3, max_length=30, regex=r'^[a-zA-Z0-9_]+$')
+    username: str = Field(..., min_length=3, max_length=30, pattern=r'^[a-zA-Z0-9_]+$')
     
     # Mandatory profile fields
     full_name: str = Field(..., min_length=2, max_length=100)
-    mobile: str = Field(..., regex=r'^\+?[1-9]\d{9,14}$')
+    mobile: str = Field(..., pattern=r'^\+?[1-9]\d{9,14}$')
     address: str = Field(..., min_length=10, max_length=500)
     date_of_birth: date
     gender: Gender

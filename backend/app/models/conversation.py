@@ -36,7 +36,7 @@ class ConversationMetadata(BaseModel):
 class Conversation(BaseModel):
     """Conversation model"""
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
-    type: str = Field(default="one_to_one", regex=r'^(one_to_one|group)$')
+    type: str = Field(default="one_to_one", pattern=r'^(one_to_one|group)$')
     
     participants: List[ConversationParticipant]
     participant_ids: List[str]  # Sorted array for quick lookup

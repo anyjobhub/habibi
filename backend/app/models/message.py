@@ -59,7 +59,7 @@ class Message(BaseModel):
     
     # Encrypted content
     encrypted_content: str  # Base64 encoded encrypted blob
-    content_type: str = Field(..., regex=r'^(text|image|video|audio|file)$')
+    content_type: str = Field(..., pattern=r'^(text|image|video|audio|file)$')
     
     # Per-recipient encryption (for multi-device)
     recipient_keys: List[RecipientKey]
@@ -89,7 +89,7 @@ class MessageCreate(BaseModel):
     """Create a new message"""
     conversation_id: str
     encrypted_content: str
-    content_type: str = Field(..., regex=r'^(text|image|video|audio|file)$')
+    content_type: str = Field(..., pattern=r'^(text|image|video|audio|file)$')
     recipient_keys: List[RecipientKey]
     
     # Optional metadata
@@ -177,7 +177,7 @@ class MessageListResponse(BaseModel):
 class MessageStatusUpdate(BaseModel):
     """Update message status"""
     message_id: str
-    status: str = Field(..., regex=r'^(delivered|read)$')
+    status: str = Field(..., pattern=r'^(delivered|read)$')
     
     class Config:
         json_schema_extra = {

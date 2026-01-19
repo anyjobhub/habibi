@@ -36,7 +36,7 @@ class Moment(BaseModel):
     duration: Optional[int] = None  # Video duration in seconds
     
     # Privacy
-    visible_to: str = Field(default="friends", regex=r'^(friends|public)$')  # Only friends for now
+    visible_to: str = Field(default="friends", pattern=r'^(friends|public)$')  # Only friends for now
     
     # Tracking
     views: List[MomentView] = Field(default_factory=list)
@@ -70,7 +70,7 @@ class MomentCreate(BaseModel):
     media_url: Optional[str] = None
     media_thumbnail: Optional[str] = None
     duration: Optional[int] = None
-    visible_to: str = Field(default="friends", regex=r'^(friends|public)$')
+    visible_to: str = Field(default="friends", pattern=r'^(friends|public)$')
     
     class Config:
         json_schema_extra = {

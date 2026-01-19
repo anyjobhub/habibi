@@ -13,7 +13,7 @@ class OTPMetadata(BaseModel):
     """OTP session metadata"""
     ip_address: Optional[str] = None
     user_agent: Optional[str] = None
-    purpose: str = Field(..., regex=r'^(signup|login|recovery)$')
+    purpose: str = Field(..., pattern=r'^(signup|login|recovery)$')
 
 
 class OTPSession(BaseModel):
@@ -44,7 +44,7 @@ class OTPSession(BaseModel):
 class OTPRequest(BaseModel):
     """Request to send OTP"""
     email: EmailStr = Field(..., description="Email address to send OTP")
-    purpose: str = Field(..., regex=r'^(signup|login|recovery)$')
+    purpose: str = Field(..., pattern=r'^(signup|login|recovery)$')
     
     class Config:
         json_schema_extra = {
