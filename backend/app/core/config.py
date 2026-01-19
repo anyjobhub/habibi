@@ -61,6 +61,10 @@ class Settings(BaseSettings):
     def model_post_init(self, __context):
         if not self.JWT_SECRET and self.SECRET_KEY:
             self.JWT_SECRET = self.SECRET_KEY
+            
+        # Clean SMTP_PASSWORD if present (remove spaces)
+        if self.SMTP_PASSWORD:
+            self.SMTP_PASSWORD = self.SMTP_PASSWORD.replace(" ", "")
     
     @property
     def cors_origins_list(self) -> List[str]:

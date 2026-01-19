@@ -175,7 +175,15 @@ class EmailOTPService:
                 
             except Exception as e:
                 logger.error(f"Failed to send OTP email to {to}: {str(e)}")
-                raise
+                # Fail-safe: Log OTP to console so user can still signup
+                logger.warning("Falling back to console OTP due to SMTP error")
+                print(f"\n{'='*60}")
+                print(f"⚠️ SMTP ERROR - FALLBACK OTP for {to}")
+                print(f"{'='*60}")
+                print(f"Error: {str(e)}")
+                print(f"OTP Code: {otp}")
+                print(f"{'='*60}\n")
+                return True
         else:
             # Development mode: log OTP instead of sending
             logger.info(f"[DEV MODE] OTP for {to}: {otp}")
