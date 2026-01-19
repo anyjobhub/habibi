@@ -1,6 +1,11 @@
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+let API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+
+// Ensure API_URL ends with /api/v1
+if (!API_URL.endsWith('/api/v1')) {
+    API_URL = `${API_URL}/api/v1`
+}
 
 const api = axios.create({
     baseURL: API_URL,

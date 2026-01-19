@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     SMTP_PORT: int = 587
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
-    FROM_EMAIL: str = "noreply@habibti.app"
+    FROM_EMAIL: str = "anyjobhub@gmail.com"
     FROM_NAME: str = "HABIBTI"
     
     # Legacy Twilio (optional, for future SMS features)
