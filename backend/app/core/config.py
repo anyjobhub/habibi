@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     CLOUDINARY_API_SECRET: str = ""
     
     # CORS
-    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
+    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000,https://habibi-oa0u22bn3-anyjobhubs-projects.vercel.app"
     
     def model_post_init(self, __context):
         if not self.JWT_SECRET and self.SECRET_KEY:
