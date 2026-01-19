@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+@theme {
+  --color-primary: #667eea;
+  --color-primary-dark: #764ba2;
+  --color-success: #10b981;
+  --color-danger: #ef4444;
+  --color-warning: #f59e0b;
+  --color-border: #e5e7eb;
+
+  --font-sans: Inter, system-ui, sans-serif;
+}
+
 @layer base {
   * {
     @apply border-gray-200;
