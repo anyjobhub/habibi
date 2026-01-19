@@ -2,29 +2,18 @@
 User model and schemas
 """
 
-from pydantic import BaseModel, Field, EmailStr, field_validator
+from pydantic import BaseModel, Field, EmailStr, field_validator, BeforeValidator
 from typing import Optional, List
 from datetime import datetime, date
 from bson import ObjectId
 from enum import Enum
 
 
-class PyObjectId(ObjectId):
-    """Custom ObjectId type for Pydantic"""
-    
-    @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
-    
-    @classmethod
-    def validate(cls, v):
-        if not ObjectId.is_valid(v):
-            raise ValueError("Invalid ObjectId")
-        return ObjectId(v)
-    
-    @classmethod
-    def __modify_schema__(cls, field_schema):
-        field_schema.update(type="string")
+from typing import Annotated, Any
+from pydantic import BaseModel, Field, EmailStr, field_validator, BeforeValidator
+
+# Pydantic v2 compatible ObjectId
+PyObjectId = Annotated[str, BeforeValidator(str)]
 
 
 class Gender(str, Enum):
