@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     REDIS_URL: str
     
     # Authentication
-    JWT_SECRET: str
+    JWT_SECRET: str = ""
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRY_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRY_DAYS: int = 30
@@ -57,6 +57,10 @@ class Settings(BaseSettings):
     
     # CORS
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
+    
+    def model_post_init(self, __context):
+        if not self.JWT_SECRET and self.SECRET_KEY:
+            self.JWT_SECRET = self.SECRET_KEY
     
     @property
     def cors_origins_list(self) -> List[str]:
