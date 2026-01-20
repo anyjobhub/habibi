@@ -229,7 +229,8 @@ async def format_conversation_response(conversation: dict, current_user_id: str,
                     "full_name": user["profile"]["full_name"],
                     "avatar_url": user["profile"].get("avatar_url"),
                     "online": user["status"].get("online", False),
-                    "last_seen": user["status"].get("last_seen")
+                    "last_seen": user["status"].get("last_seen"),
+                    "public_key": user.get("encryption", {}).get("public_key")
                 })
     
     # Calculate unread count

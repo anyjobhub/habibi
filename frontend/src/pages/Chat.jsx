@@ -293,12 +293,26 @@ export default function Chat() {
         e?.preventDefault()
         if ((!newMessage.trim() && !mediaFile) || sending || !conversationId) return
 
+        // 1. Guard: Check Connection & Recipients
+        const activeConv = conversations.find(c => c.id === conversationId)
+        const recipient = activeConv?.participants.find(p => p.user_id !== user.id) || activeConv?.participants[0]
+
+        if (!isConnected && !usingPolling) {
+            alert("Waiting for connection...")
+            return
+        }
+
+        if (!recipient?.public_key) {
+            alert("Encryption key missing for recipient. Cannot send.")
+            return
+        }
+
         setSending(true)
         try {
             let mediaUrl = null
             let mediaThumbnail = null
 
-            // 1. Upload Media
+            // 2. Upload Media
             if (mediaFile) {
                 const formData = new FormData()
                 formData.append('file', mediaFile)
@@ -309,16 +323,15 @@ export default function Chat() {
                 })
 
                 mediaUrl = uploadRes.data.url
-                // For video, we might want a thumbnail but for now reuse url or generic placeholder if backend doesn't gen it
                 mediaThumbnail = mediaType === 'image' ? mediaUrl : null
             }
 
-            // 2. Encrypt Content (Caption or Text)
+            // 3. Encrypt Content (Caption or Text)
             // If media exists, message text is caption. If empty, it's empty string.
             const contentToEncrypt = newMessage || (mediaFile ? '' : '')
-            const encrypted = await encrypt(contentToEncrypt)
+            const encrypted = await encrypt(contentToEncrypt, recipient.public_key)
 
-            // 3. Send API
+            // 4. Send API
             const { data } = await api.post('/messages', {
                 conversation_id: conversationId,
                 encrypted_content: JSON.stringify(encrypted), // Caption
@@ -347,13 +360,13 @@ export default function Chat() {
         setNewMessage(e.target.value)
 
         // Emit typing event via WS
-        if (conversationId) {
+        if (conversationId && isConnected) {
             sendWSMessage({ type: 'typing_start', conversation_id: conversationId })
 
             // Debounce stop
             clearTimeout(typingTimeoutRef.current)
             typingTimeoutRef.current = setTimeout(() => {
-                sendWSMessage({ type: 'typing_stop', conversation_id: conversationId })
+                if (isConnected) sendWSMessage({ type: 'typing_stop', conversation_id: conversationId })
             }, 2000)
         }
     }
@@ -546,8 +559,9 @@ export default function Chat() {
                                     />
                                     <button
                                         type="submit"
-                                        className="btn btn-primary rounded-full w-10 h-10 flex items-center justify-center p-0"
-                                        disabled={sending || (!newMessage.trim() && !mediaFile)}
+                                        className={`btn btn-primary rounded-full w-10 h-10 flex items-center justify-center p-0 ${!isConnected && !usingPolling ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        disabled={sending || (!newMessage.trim() && !mediaFile) || (!isConnected && !usingPolling)}
+                                        title={!isConnected && !usingPolling ? "Connecting..." : "Send"}
                                     >
                                         ➤
                                     </button>
