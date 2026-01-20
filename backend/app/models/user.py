@@ -237,3 +237,10 @@ class UserDetailResponse(BaseModel):
                 }
             }
         }
+
+
+class AuthResponse(BaseModel):
+    """Authentication response with token"""
+    user: UserDetailResponse
+    access_token: str
+    token_type: str = "bearer"

@@ -13,7 +13,8 @@ from app.models import (
     OTPVerifyRequest,
     OTPVerifyResponse,
     UserCreate,
-    UserDetailResponse
+    UserDetailResponse,
+    AuthResponse
 )
 from app.core import (
     get_database,
@@ -320,7 +321,7 @@ async def verify_otp_endpoint(request: Request, data: OTPVerifyRequest):
     )
 
 
-@router.post("/complete-signup", response_model=UserDetailResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/complete-signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
 async def complete_signup(user_data: UserCreate, temp_token: str):
     """
     Step 3: Complete signup process with full profile details
@@ -427,15 +428,20 @@ async def complete_signup(user_data: UserCreate, temp_token: str):
     # Get created user
     created_user = await db.users.find_one({"_id": result.inserted_id})
     
-    return UserDetailResponse(
-        id=str(created_user["_id"]),
-        email=created_user["email"],
-        username=created_user["username"],
-        profile=UserProfile(**created_user["profile"]),
-        privacy=UserPrivacy(**created_user["privacy"]),
-        devices=created_user["devices"],
-        status=created_user["status"]
+    return AuthResponse(
+        user=UserDetailResponse(
+            id=str(created_user["_id"]),
+            email=created_user["email"],
+            username=created_user["username"],
+            profile=UserProfile(**created_user["profile"]),
+            privacy=UserPrivacy(**created_user["privacy"]),
+            devices=created_user["devices"],
+            status=created_user["status"]
+        ),
+        access_token=session_token,
+        token_type="bearer"
     )
+
 
 
 @router.get("/me", response_model=UserDetailResponse)
