@@ -304,3 +304,33 @@ async def get_user_public_key(
             for device in user.get("devices", [])
         ]
     }
+@router.post("/update-public-key", status_code=status.HTTP_200_OK)
+async def update_public_key(
+    data: dict = Body(...),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """
+    Update user's public encryption key
+    - Used when user loses their private key or switches browsers
+    - Note: This makes older messages non-decryptable for this user
+    """
+    db = await get_database()
+    
+    public_key = data.get("public_key")
+    if not public_key:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Public key is required"
+        )
+        
+    await db.users.update_one(
+        {"_id": ObjectId(current_user_id)},
+        {
+            "$set": {
+                "encryption.public_key": public_key,
+                "metadata.updated_at": datetime.utcnow()
+            }
+        }
+    )
+    
+    return {"message": "Public key updated successfully"}
