@@ -469,30 +469,6 @@ export default function Chat() {
                         />
                     </div>
 
-                    {/* Encryption Setup Prompt */}
-                    {!keyPair && !loading && (
-                        <div className="p-4 bg-amber-50 border-b">
-                            <p className="text-xs text-amber-800 mb-2 font-medium">🛡️ End-to-End Encryption is not set up on this browser.</p>
-                            <button
-                                onClick={async () => {
-                                    if (window.confirm("This will generate new encryption keys. You will not be able to read old messages, but new ones will be secure. Proceed?")) {
-                                        try {
-                                            const pk = await generateAndSaveKeys()
-                                            await api.post('/users/update-public-key', { public_key: pk })
-                                            alert("Encryption set up successfully!")
-                                            window.location.reload()
-                                        } catch (err) {
-                                            alert("Failed to set up encryption")
-                                        }
-                                    }
-                                }}
-                                className="btn btn-primary btn-sm w-full py-1 text-xs"
-                            >
-                                Set Up Now
-                            </button>
-                        </div>
-                    )}
-
                     <div className="flex-1 overflow-y-auto">
                         {searchQuery ? (
                             searchResults.map(u => (
