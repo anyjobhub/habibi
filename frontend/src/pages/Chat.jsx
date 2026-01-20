@@ -345,10 +345,10 @@ export default function Chat() {
             }
 
             const recipientKeys = [
-                { user_id: recipient.user_id, encrypted_key: recipientEncryptedKey }
+                { user_id: recipient.user_id, device_id: 'web', encrypted_key: recipientEncryptedKey }
             ]
             if (senderEncryptedKey) {
-                recipientKeys.push({ user_id: user.id, encrypted_key: senderEncryptedKey })
+                recipientKeys.push({ user_id: user.id, device_id: 'web', encrypted_key: senderEncryptedKey })
             }
 
             // 4. Send API
