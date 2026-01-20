@@ -4,7 +4,7 @@ Handles Email OTP-based signup and login
 """
 
 from fastapi import APIRouter, HTTPException, status, Request
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from bson import ObjectId
 
 from app.models import (
@@ -406,6 +406,13 @@ async def complete_signup(user_data: UserCreate, temp_token: str):
     )
     
     user_dict = user.model_dump(by_alias=True, exclude={"id"})
+    
+    # FIX: Convert date to datetime for MongoDB (BSON compatibility)
+    if "profile" in user_dict and "date_of_birth" in user_dict["profile"]:
+        dob = user_dict["profile"]["date_of_birth"]
+        if isinstance(dob, date) and not isinstance(dob, datetime):
+            user_dict["profile"]["date_of_birth"] = datetime.combine(dob, datetime.min.time())
+            
     result = await db.users.insert_one(user_dict)
     
     # Create session token

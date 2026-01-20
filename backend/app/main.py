@@ -73,10 +73,7 @@ async def log_requests(request: Request, call_next):
 app.add_middleware(SecurityHeadersMiddleware)
 
 
-@app.get("/health", status_code=status.HTTP_200_OK)
-async def health_check():
-    """Health check endpoint for UptimeRobot"""
-    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+
 
 
 
