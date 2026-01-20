@@ -98,7 +98,8 @@ async def send_message(
     message = {
         "conversation_id": data.conversation_id,
         "sender_id": current_user_id,
-        "encrypted_content": data.encrypted_content,
+        "content": data.content,  # Plaintext content
+        "encrypted_content": data.encrypted_content,  # Encrypted content
         "content_type": data.content_type,
         "recipient_keys": [rk.model_dump() for rk in data.recipient_keys],
         "metadata": metadata,
@@ -123,7 +124,7 @@ async def send_message(
             "$set": {
                 "last_message": {
                     "message_id": str(result.inserted_id),
-                    "encrypted_preview": data.encrypted_content[:50] if len(data.encrypted_content) > 50 else data.encrypted_content,
+                    "encrypted_preview": data.encrypted_content[:50] if data.encrypted_content else data.content[:50],
                     "timestamp": datetime.utcnow(),
                     "sender_id": current_user_id
                 },

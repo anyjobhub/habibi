@@ -23,13 +23,26 @@ const DecryptedMessage = ({ message }) => {
                 return
             }
 
+            // Check if message is plaintext or encrypted
+            const isPlaintext = !message.encrypted_content || message.encrypted_content === ''
+
+            if (isPlaintext) {
+                // PLAINTEXT: Display directly from content field
+                if (mounted) setContent(message.content || '')
+                return
+            }
+
+            // ENCRYPTED: Try to decrypt
             try {
                 // If keys are still loading, wait
                 if (keysLoading) return
 
-                // If keys don't exist after loading, show setup prompt
+                // No keys but message is encrypted: Show lock icon (graceful failure)
                 if (!keyPair) {
-                    if (mounted) setContent('⚠️ Click "Set Up Now" above')
+                    if (mounted) {
+                        setError(true)
+                        setContent('')
+                    }
                     return
                 }
 
@@ -59,12 +72,9 @@ const DecryptedMessage = ({ message }) => {
                 }
             } catch (err) {
                 if (mounted) {
-                    // Only show error if keys ARE loaded but decryption still failed
-                    if (!keysLoading && keyPair) {
-                        console.warn("Decryption failed for msg:", message.id, err)
-                        setError(true)
-                        setContent('')
-                    }
+                    console.warn("Decryption failed for msg:", message.id, err)
+                    setError(true)
+                    setContent('')
                 }
             }
         }
@@ -349,51 +359,59 @@ export default function Chat() {
                 mediaThumbnail = mediaType === 'image' ? mediaUrl : null
             }
 
-            // 3. Encrypt Content (AES + Multi-Recipient RSA)
-            const contentToEncrypt = newMessage || (mediaFile ? '' : '')
+            // 3. Prepare Message Content
+            const contentToSend = newMessage || (mediaFile ? '' : '')
 
-            // A. Generate AES Key
-            const symmKey = await generateSymmetricKey()
+            // Check: Do both users have encryption keys?
+            const canEncrypt = keyPair?.publicKeyPem && recipient?.public_key
 
-            // B. Encrypt Content with AES
-            const encryptedBody = await encryptWithSymmetric(contentToEncrypt, symmKey)
+            let messagePayload
 
-            // C. Encrypt AES Key for Recipient
-            const recipientEncryptedKey = await encryptSymmetricKey(symmKey, recipient.public_key)
+            if (canEncrypt) {
+                // ENCRYPTED MODE
+                const symmKey = await generateSymmetricKey()
+                const encryptedBody = await encryptWithSymmetric(contentToSend, symmKey)
+                const recipientEncryptedKey = await encryptSymmetricKey(symmKey, recipient.public_key)
+                const senderEncryptedKey = await encryptSymmetricKey(symmKey, keyPair.publicKeyPem)
 
-            // D. Encrypt AES Key for Self (so we can read it later)
-            // keyPair is from useEncryption hook
-            let senderEncryptedKey = null
-            if (keyPair?.publicKeyPem) {
-                senderEncryptedKey = await encryptSymmetricKey(symmKey, keyPair.publicKeyPem)
+                const recipientKeys = [
+                    { user_id: recipient.user_id, device_id: 'web', encrypted_key: recipientEncryptedKey },
+                    { user_id: user.id, device_id: 'web', encrypted_key: senderEncryptedKey }
+                ]
+
+                const finalPayload = {
+                    content: encryptedBody.content,
+                    iv: encryptedBody.iv,
+                    key: null
+                }
+
+                messagePayload = {
+                    conversation_id: conversationId,
+                    content: '',  // Empty when encrypted
+                    encrypted_content: JSON.stringify(finalPayload),
+                    content_type: mediaFile ? mediaType : 'text',
+                    recipient_keys: recipientKeys,
+                    media_url: mediaUrl,
+                    media_thumbnail: mediaThumbnail,
+                    duration: null,
+                    file_size: mediaFile?.size || 0
+                }
+            } else {
+                // PLAINTEXT MODE
+                messagePayload = {
+                    conversation_id: conversationId,
+                    content: contentToSend,  // Actual text
+                    encrypted_content: '',  // Empty when plaintext
+                    content_type: mediaFile ? mediaType : 'text',
+                    recipient_keys: [],  // No encryption keys needed
+                    media_url: mediaUrl,
+                    media_thumbnail: mediaThumbnail,
+                    duration: null,
+                    file_size: mediaFile?.size || 0
+                }
             }
 
-            const recipientKeys = [
-                { user_id: recipient.user_id, device_id: 'web', encrypted_key: recipientEncryptedKey }
-            ]
-            if (senderEncryptedKey) {
-                recipientKeys.push({ user_id: user.id, device_id: 'web', encrypted_key: senderEncryptedKey })
-            }
-
-            // 4. Send API
-            // Note: We send encrypted_content as just { content, iv } stringified
-            // The 'key' field inside encrypted_content is legacy/redundant now but we can send null or omit
-            const finalPayload = {
-                content: encryptedBody.content,
-                iv: encryptedBody.iv,
-                key: null // Legacy field, now using recipient_keys
-            }
-
-            const { data } = await api.post('/messages', {
-                conversation_id: conversationId,
-                encrypted_content: JSON.stringify(finalPayload),
-                content_type: mediaFile ? mediaType : 'text',
-                recipient_keys: recipientKeys,
-                media_url: mediaUrl,
-                media_thumbnail: mediaThumbnail,
-                duration: null,
-                file_size: mediaFile?.size || 0
-            })
+            const { data } = await api.post('/messages', messagePayload)
 
             // 4. Update UI
             setMessages(prev => [data, ...prev])

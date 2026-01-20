@@ -57,12 +57,13 @@ class Message(BaseModel):
     conversation_id: str
     sender_id: str
     
-    # Encrypted content
-    encrypted_content: str  # Base64 encoded encrypted blob
+    # Content - supports both plaintext and encrypted
+    content: str = ""  # Plaintext content (empty if encrypted)
+    encrypted_content: str = ""  # Encrypted content (empty if plaintext)
     content_type: str = Field(..., pattern=r'^(text|image|video|audio|file)$')
     
-    # Per-recipient encryption (for multi-device)
-    recipient_keys: List[RecipientKey]
+    # Per-recipient encryption (optional for multi-device)
+    recipient_keys: List[RecipientKey] = Field(default_factory=list)
     
     # Message metadata (NOT encrypted)
     metadata: MessageMetadata = Field(default_factory=MessageMetadata)
@@ -88,9 +89,10 @@ class Message(BaseModel):
 class MessageCreate(BaseModel):
     """Create a new message"""
     conversation_id: str
-    encrypted_content: str
+    content: str = ""  # Plaintext content
+    encrypted_content: str = ""  # Encrypted content
     content_type: str = Field(..., pattern=r'^(text|image|video|audio|file)$')
-    recipient_keys: List[RecipientKey]
+    recipient_keys: List[RecipientKey] = Field(default_factory=list)
     
     # Optional metadata
     media_url: Optional[str] = None
