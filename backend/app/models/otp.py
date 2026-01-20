@@ -4,7 +4,7 @@ OTP Session model and schemas
 
 from pydantic import BaseModel, Field, EmailStr
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 from app.models.user import PyObjectId
 
@@ -25,7 +25,7 @@ class OTPSession(BaseModel):
     attempts: int = 0
     max_attempts: int = 3
     
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     expires_at: datetime
     verified: bool = False
     verified_at: Optional[datetime] = None

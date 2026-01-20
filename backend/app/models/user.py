@@ -4,7 +4,7 @@ User model and schemas
 
 from pydantic import BaseModel, Field, EmailStr, field_validator, BeforeValidator
 from typing import Optional, List
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from bson import ObjectId
 from enum import Enum
 
@@ -36,7 +36,7 @@ class UserProfile(BaseModel):
     date_of_birth: date = Field(..., description="Date of birth (age validation required)")
     gender: Gender = Field(..., description="Gender")
     
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     @field_validator('full_name')
     @classmethod
@@ -78,14 +78,14 @@ class DeviceInfo(BaseModel):
     device_id: str
     device_name: str
     public_key: str
-    last_active: datetime = Field(default_factory=datetime.utcnow)
+    last_active: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     push_token: Optional[str] = None
 
 
 class UserStatus(BaseModel):
     """User online status"""
     online: bool = False
-    last_seen: datetime = Field(default_factory=datetime.utcnow)
+    last_seen: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class UserMetadata(BaseModel):
@@ -93,8 +93,8 @@ class UserMetadata(BaseModel):
     trust_score: int = Field(default=100, ge=0, le=100)
     is_banned: bool = False
     account_status: str = Field(default="active", pattern=r'^(active|suspended|deleted)$')
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class User(BaseModel):

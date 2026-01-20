@@ -4,7 +4,7 @@ Conversation model and schemas
 
 from pydantic import BaseModel, Field
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 from app.models.user import PyObjectId
 
@@ -12,7 +12,7 @@ from app.models.user import PyObjectId
 class ConversationParticipant(BaseModel):
     """Participant in a conversation"""
     user_id: str
-    joined_at: datetime = Field(default_factory=datetime.utcnow)
+    joined_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     left_at: Optional[datetime] = None
     last_read_at: Optional[datetime] = None
     notifications_enabled: bool = True
@@ -28,8 +28,8 @@ class LastMessage(BaseModel):
 
 class ConversationMetadata(BaseModel):
     """Conversation metadata"""
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     archived_by: List[str] = Field(default_factory=list)  # User IDs who archived
 
 

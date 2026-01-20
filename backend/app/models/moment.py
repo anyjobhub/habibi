@@ -4,7 +4,7 @@ Moment model and schemas (24-hour stories/feeds)
 
 from pydantic import BaseModel, Field
 from typing import Optional, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from bson import ObjectId
 from app.models.user import PyObjectId
 from enum import Enum
@@ -20,7 +20,7 @@ class MomentType(str, Enum):
 class MomentView(BaseModel):
     """Moment view tracking"""
     user_id: str
-    viewed_at: datetime = Field(default_factory=datetime.utcnow)
+    viewed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class Moment(BaseModel):
@@ -43,7 +43,7 @@ class Moment(BaseModel):
     view_count: int = 0
     
     # Timestamps
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     expires_at: datetime  # Auto-calculated as created_at + 24 hours
     
     # Soft delete
@@ -57,7 +57,7 @@ class Moment(BaseModel):
     
     def __init__(self, **data):
         if 'expires_at' not in data:
-            data['expires_at'] = datetime.utcnow() + timedelta(hours=24)
+            data['expires_at'] = datetime.now(timezone.utc) + timedelta(hours=24)
         super().__init__(**data)
 
 
