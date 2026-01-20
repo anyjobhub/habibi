@@ -293,14 +293,12 @@ export default function Chat() {
         e?.preventDefault()
         if ((!newMessage.trim() && !mediaFile) || sending || !conversationId) return
 
-        // 1. Guard: Check Connection & Recipients
+        // 1. Guard: Check Recipients
         const activeConv = conversations.find(c => c.id === conversationId)
         const recipient = activeConv?.participants.find(p => p.user_id !== user.id) || activeConv?.participants[0]
 
-        if (!isConnected && !usingPolling) {
-            alert("Waiting for connection...")
-            return
-        }
+        // Note: We allow sending via REST even if WS is disconnected.
+        // WS is for live updates. REST is for delivery.
 
         if (!recipient?.public_key) {
             alert("Encryption key missing for recipient. Cannot send.")
@@ -559,9 +557,8 @@ export default function Chat() {
                                     />
                                     <button
                                         type="submit"
-                                        className={`btn btn-primary rounded-full w-10 h-10 flex items-center justify-center p-0 ${!isConnected && !usingPolling ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                        disabled={sending || (!newMessage.trim() && !mediaFile) || (!isConnected && !usingPolling)}
-                                        title={!isConnected && !usingPolling ? "Connecting..." : "Send"}
+                                        className="btn btn-primary rounded-full w-10 h-10 flex items-center justify-center p-0"
+                                        disabled={sending || (!newMessage.trim() && !mediaFile)}
                                     >
                                         ➤
                                     </button>
