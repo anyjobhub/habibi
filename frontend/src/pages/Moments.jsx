@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../utils/api'
+import { useWS } from '../contexts/WebSocketContext'
 
 export default function Moments() {
     const [moments, setMoments] = useState([])
@@ -16,11 +17,19 @@ export default function Moments() {
     const [textContent, setTextContent] = useState('')
     const [creating, setCreating] = useState(false)
     const fileInputRef = useRef(null)
+    const { lastMessage } = useWS()
 
     useEffect(() => {
         loadMoments()
         loadMyMoments()
     }, [])
+
+    // Real-time updates
+    useEffect(() => {
+        if (lastMessage?.type === 'new_moment') {
+            loadMoments()
+        }
+    }, [lastMessage])
 
     // Cleanup preview URL
     useEffect(() => {
@@ -217,8 +226,8 @@ export default function Moments() {
                             <button
                                 onClick={() => setActiveTab('feed')}
                                 className={`pb-2 px-4 font-semibold transition-colors ${activeTab === 'feed'
-                                        ? 'text-primary border-b-2 border-primary'
-                                        : 'text-gray-500 hover:text-gray-700'
+                                    ? 'text-primary border-b-2 border-primary'
+                                    : 'text-gray-500 hover:text-gray-700'
                                     }`}
                             >
                                 Friends' Moments
@@ -226,8 +235,8 @@ export default function Moments() {
                             <button
                                 onClick={() => setActiveTab('my')}
                                 className={`pb-2 px-4 font-semibold transition-colors ${activeTab === 'my'
-                                        ? 'text-primary border-b-2 border-primary'
-                                        : 'text-gray-500 hover:text-gray-700'
+                                    ? 'text-primary border-b-2 border-primary'
+                                    : 'text-gray-500 hover:text-gray-700'
                                     }`}
                             >
                                 My Moments

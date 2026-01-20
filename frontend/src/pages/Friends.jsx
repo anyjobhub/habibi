@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../utils/api'
+import { useWS } from '../contexts/WebSocketContext'
 
 export default function Friends() {
     const [activeTab, setActiveTab] = useState('friends')
@@ -9,11 +10,25 @@ export default function Friends() {
     const [searchQuery, setSearchQuery] = useState('')
     const [searchResults, setSearchResults] = useState([])
     const [loading, setLoading] = useState(false)
+    const { lastMessage } = useWS()
 
     useEffect(() => {
         loadFriends()
         loadRequests()
     }, [])
+
+    // Real-time updates
+    useEffect(() => {
+        if (!lastMessage) return
+
+        if (lastMessage.type === 'friend_request_received') {
+            loadRequests()
+        }
+        if (lastMessage.type === 'friend_request_accepted') {
+            loadFriends()
+            loadRequests()
+        }
+    }, [lastMessage])
 
     const loadFriends = async () => {
         try {

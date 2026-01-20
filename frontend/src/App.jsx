@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { WebSocketProvider } from './contexts/WebSocketContext'
 import { useAuth } from './hooks/useAuth'
+import NotificationManager from './components/NotificationManager'
 
 // Pages
 import Login from './pages/Login'
@@ -49,6 +50,7 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <WebSocketProvider>
+          <NotificationManager />
           <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
