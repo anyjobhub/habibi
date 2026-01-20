@@ -24,7 +24,14 @@ const DecryptedMessage = ({ message }) => {
             }
 
             try {
-                if (keysLoading || !keyPair) return // Stay in 'Decrypting...' state
+                // If keys are still loading, wait
+                if (keysLoading) return
+
+                // If keys don't exist after loading, show setup prompt
+                if (!keyPair) {
+                    if (mounted) setContent('⚠️ Click "Set Up Now" above')
+                    return
+                }
 
                 const payload = message.encrypted_content
                 if (!payload) {
@@ -63,7 +70,7 @@ const DecryptedMessage = ({ message }) => {
         }
         process()
         return () => { mounted = false }
-    }, [message, decrypt, user])
+    }, [message, decrypt, user, keyPair, keysLoading])
 
     if (error) return (
         <div className="flex items-center gap-1 text-gray-400 text-xs italic" title="Message unavailable (decryption failed)">
