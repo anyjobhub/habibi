@@ -7,7 +7,7 @@ import api from '../utils/api'
 
 // Sub-components
 const DecryptedMessage = ({ message }) => {
-    const { decrypt } = useEncryption()
+    const { decrypt, keyPair, loading: keysLoading } = useEncryption()
     const { user } = useAuth()
     const [content, setContent] = useState('Decrypting...')
     const [error, setError] = useState(false)
@@ -24,7 +24,14 @@ const DecryptedMessage = ({ message }) => {
             }
 
             try {
+                if (keysLoading || !keyPair) return // Stay in 'Decrypting...' state
+
                 const payload = message.encrypted_content
+                if (!payload) {
+                    if (mounted) setContent('')
+                    return
+                }
+
                 let parsedPayload = payload
 
                 // Parse if stringified JSON
@@ -45,9 +52,12 @@ const DecryptedMessage = ({ message }) => {
                 }
             } catch (err) {
                 if (mounted) {
-                    console.warn("Decryption failed for msg:", message.id, err)
-                    setError(true)
-                    setContent('')
+                    // Only show error if keys ARE loaded but decryption still failed
+                    if (!keysLoading && keyPair) {
+                        console.warn("Decryption failed for msg:", message.id, err)
+                        setError(true)
+                        setContent('')
+                    }
                 }
             }
         }
