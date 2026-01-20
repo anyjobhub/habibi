@@ -177,11 +177,11 @@ export default function Chat() {
                 break
 
             case 'user_online':
-                updateUserStatus(data.user_id, true)
+                updateUserStatus(data.user_id, true, data.timestamp)
                 break
 
             case 'user_offline':
-                updateUserStatus(data.user_id, false)
+                updateUserStatus(data.user_id, false, data.timestamp)
                 break
 
             case 'message_status_update':
@@ -202,10 +202,10 @@ export default function Chat() {
         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
     }
 
-    const updateUserStatus = (userId, isOnline) => {
+    const updateUserStatus = (userId, isOnline, timestamp = null) => {
         setConversations(prev => prev.map(conv => {
             const updatedParticipants = conv.participants.map(p =>
-                p.id === userId ? { ...p, is_online: isOnline } : p
+                p.user_id === userId ? { ...p, online: isOnline, last_seen: timestamp || p.last_seen } : p
             )
             return { ...conv, participants: updatedParticipants }
         }))
@@ -234,7 +234,7 @@ export default function Chat() {
     const loadConversations = async () => {
         try {
             const { data } = await api.get('/conversations')
-            setConversations(data)
+            setConversations(data.conversations) // API returns { conversations: [], total: ... }
         } catch (err) {
             console.error(err)
         }
@@ -293,46 +293,45 @@ export default function Chat() {
             let mediaUrl = null
             let mediaThumbnail = null
 
+            // 1. Upload Media
             if (mediaFile) {
                 const formData = new FormData()
                 formData.append('file', mediaFile)
-                // Use friends upload endpoint reused for chat or dedicated chat upload?
-                // Using generic upload if available or moments? 
-                // Let's use moments upload for now or assume a generic one.
-                // Assuming POST /api/v1/moments/upload works or we need a chat one.
-                // Let's rely on the Moments one for now as it's the only one I saw.
-                // Or better, skip media if backend doesn't explicitly support chat media upload yet?
-                // The implementation plan says "Chat Media UI (Send Photo/Video)" was completed.
-                // Let's check api endpoints... I'll assume /upload exists or similar.
-                // Reverting to text-only if unsure? No, user wants WhatsApp like.
-                // I'll try /moments/upload?type=${mediaType} as a hack or hope a generic one exists.
-                // Wait, I am writing this blindly. For safety I will just support Text first unless I'm sure.
-                // User requirement: "Real-time live messaging".
 
-                // For now, let's implement TEXT fully.
+                // Using media upload endpoint
+                const uploadRes = await api.post(`/media/upload?type=${mediaType}`, formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                })
+
+                mediaUrl = uploadRes.data.url
+                // For video, we might want a thumbnail but for now reuse url or generic placeholder if backend doesn't gen it
+                mediaThumbnail = mediaType === 'image' ? mediaUrl : null
             }
 
-            // 1. Encrypt
-            const encrypted = await encrypt(newMessage)
+            // 2. Encrypt Content (Caption or Text)
+            // If media exists, message text is caption. If empty, it's empty string.
+            const contentToEncrypt = newMessage || (mediaFile ? '' : '')
+            const encrypted = await encrypt(contentToEncrypt)
 
-            // 2. Send API
+            // 3. Send API
             const { data } = await api.post('/messages', {
                 conversation_id: conversationId,
-                encrypted_content: encrypted,
-                content_type: 'text',
-                recipient_keys: [], // Simplified for now
-                media_url: mediaUrl
+                encrypted_content: encrypted, // Caption
+                content_type: mediaFile ? mediaType : 'text',
+                recipient_keys: [],
+                media_url: mediaUrl,
+                media_thumbnail: mediaThumbnail,
+                duration: null, // Could extract from file object if needed
+                file_size: mediaFile?.size || 0
             })
 
-            // 3. WS Broadcast is handled by Backend (POST /messages -> broadcast)
-            // But we can optimistically append?
-            // Better to wait for WS echo or append local result.
-            // Appending local result gives instant feedback.
+            // 4. Update UI
             setMessages(prev => [data, ...prev])
             setNewMessage('')
             clearMedia()
 
         } catch (err) {
+            console.error(err)
             alert('Failed to send')
         } finally {
             setSending(false)
@@ -414,7 +413,7 @@ export default function Chat() {
                             ))
                         ) : (
                             conversations.map(conv => {
-                                const other = conv.participants.find(p => p.id !== user.id) || conv.participants[0]
+                                const other = conv.participants.find(p => p.user_id !== user.id) || conv.participants[0]
                                 return (
                                     <div
                                         key={conv.id}
@@ -425,7 +424,7 @@ export default function Chat() {
                                             <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
                                                 {other.avatar_url ? <img src={other.avatar_url} className="w-full h-full object-cover" /> : <span className="font-bold text-gray-500">{other.full_name[0]}</span>}
                                             </div>
-                                            {other.is_online && <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>}
+                                            {other.online && <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex justify-between items-baseline">
@@ -437,7 +436,11 @@ export default function Chat() {
                                                 )}
                                             </div>
                                             <p className="text-sm text-gray-500 truncate">
-                                                {conv.last_message ? 'Encrypted Message' : 'Start a conversation'}
+                                                {typingUsers.has(other.user_id) ? (
+                                                    <span className="text-green-600 font-medium">typing...</span>
+                                                ) : (
+                                                    conv.last_message ? 'Encrypted Message' : 'Start a conversation'
+                                                )}
                                             </p>
                                         </div>
                                     </div>
@@ -451,7 +454,46 @@ export default function Chat() {
                 <div className={`flex-1 flex flex-col relative ${!conversationId ? 'hidden md:flex' : 'flex'}`}>
                     {conversationId ? (
                         <>
-                            <div className="flex-1 overflow-y-auto p-4 flex flex-col-reverse gap-4">
+                            {/* Active Chat Header */}
+                            <header className="bg-white px-4 py-3 border-b flex items-center justify-between shadow-sm z-20">
+                                {(() => {
+                                    const activeConv = conversations.find(c => c.id === conversationId)
+                                    const other = activeConv?.participants.find(p => p.user_id !== user.id) || activeConv?.participants[0]
+
+                                    if (!other) return <div>Loading...</div>
+
+                                    return (
+                                        <div className="flex items-center gap-3">
+                                            <button onClick={() => navigate('/chat')} className="md:hidden text-gray-500 mr-2">←</button>
+                                            <div className="relative">
+                                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
+                                                    {other.avatar_url ? (
+                                                        <img src={other.avatar_url} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <span className="font-bold text-primary">{other.full_name?.[0]}</span>
+                                                    )}
+                                                </div>
+                                                {other.online && <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white"></div>}
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-sm">{other.full_name}</h3>
+                                                <div className="text-xs text-gray-500">
+                                                    {other.online ? (
+                                                        <span className="text-green-600 font-medium">Online</span>
+                                                    ) : (
+                                                        other.last_seen ? `Last seen: ${new Date(other.last_seen).toLocaleDateString()} ${new Date(other.last_seen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Offline'
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )
+                                })()}
+
+                                {/* Info / Actions */}
+                                <button className="p-2 text-gray-400 hover:text-gray-600">⋮</button>
+                            </header>
+
+                            <div className="flex-1 overflow-y-auto p-4 flex flex-col-reverse gap-4 bg-[#e5ded8]/30"> {/* WhatsApp-like bg hint */}
                                 {messages.map(msg => (
                                     <div key={msg.id} className={`flex ${msg.sender_id === user.id ? 'justify-end' : 'justify-start'}`}>
                                         <div className={`max-w-[70%] px-4 py-2 rounded-2xl ${msg.sender_id === user.id ? 'bg-primary text-white rounded-br-none' : 'bg-white border rounded-bl-none shadow-sm'
