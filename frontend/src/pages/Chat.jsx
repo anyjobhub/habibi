@@ -8,6 +8,7 @@ import api from '../utils/api'
 // Sub-components
 const DecryptedMessage = ({ message }) => {
     const { decrypt } = useEncryption()
+    const { user } = useAuth()
     const [content, setContent] = useState('Decrypting...')
     const [error, setError] = useState(false)
 
@@ -28,7 +29,7 @@ const DecryptedMessage = ({ message }) => {
                         if (typeof payload === 'string') {
                             try { payload = JSON.parse(payload) } catch { }
                         }
-                        const text = await decrypt(payload)
+                        const text = await decrypt(payload, message.recipient_keys, user.id)
                         if (mounted) setContent(text)
                     } else {
                         if (mounted) setContent('')
@@ -38,7 +39,7 @@ const DecryptedMessage = ({ message }) => {
                     if (typeof payload === 'string') {
                         try { payload = JSON.parse(payload) } catch { }
                     }
-                    const text = await decrypt(payload)
+                    const text = await decrypt(payload, message.recipient_keys, user.id)
                     if (mounted) setContent(text)
                 }
             } catch (err) {
@@ -85,7 +86,7 @@ export default function Chat() {
     const { conversationId } = useParams()
     const { user } = useAuth()
     const { lastMessage, sendMessage: sendWSMessage, usingPolling, isConnected } = useWS()
-    const { encrypt } = useEncryption()
+    const { encrypt, generateSymmetricKey, encryptWithSymmetric, encryptSymmetricKey, keyPair } = useEncryption()
     const navigate = useNavigate()
 
     // Data State
@@ -324,20 +325,49 @@ export default function Chat() {
                 mediaThumbnail = mediaType === 'image' ? mediaUrl : null
             }
 
-            // 3. Encrypt Content (Caption or Text)
-            // If media exists, message text is caption. If empty, it's empty string.
+            // 3. Encrypt Content (AES + Multi-Recipient RSA)
             const contentToEncrypt = newMessage || (mediaFile ? '' : '')
-            const encrypted = await encrypt(contentToEncrypt, recipient.public_key)
+
+            // A. Generate AES Key
+            const symmKey = await generateSymmetricKey()
+
+            // B. Encrypt Content with AES
+            const encryptedBody = await encryptWithSymmetric(contentToEncrypt, symmKey)
+
+            // C. Encrypt AES Key for Recipient
+            const recipientEncryptedKey = await encryptSymmetricKey(symmKey, recipient.public_key)
+
+            // D. Encrypt AES Key for Self (so we can read it later)
+            // keyPair is from useEncryption hook
+            let senderEncryptedKey = null
+            if (keyPair?.publicKeyPem) {
+                senderEncryptedKey = await encryptSymmetricKey(symmKey, keyPair.publicKeyPem)
+            }
+
+            const recipientKeys = [
+                { user_id: recipient.user_id, encrypted_key: recipientEncryptedKey }
+            ]
+            if (senderEncryptedKey) {
+                recipientKeys.push({ user_id: user.id, encrypted_key: senderEncryptedKey })
+            }
 
             // 4. Send API
+            // Note: We send encrypted_content as just { content, iv } stringified
+            // The 'key' field inside encrypted_content is legacy/redundant now but we can send null or omit
+            const finalPayload = {
+                content: encryptedBody.content,
+                iv: encryptedBody.iv,
+                key: null // Legacy field, now using recipient_keys
+            }
+
             const { data } = await api.post('/messages', {
                 conversation_id: conversationId,
-                encrypted_content: JSON.stringify(encrypted), // Caption
+                encrypted_content: JSON.stringify(finalPayload),
                 content_type: mediaFile ? mediaType : 'text',
-                recipient_keys: [],
+                recipient_keys: recipientKeys,
                 media_url: mediaUrl,
                 media_thumbnail: mediaThumbnail,
-                duration: null, // Could extract from file object if needed
+                duration: null,
                 file_size: mediaFile?.size || 0
             })
 
@@ -447,7 +477,11 @@ export default function Chat() {
                                                 <h4 className="font-semibold truncate">{other.full_name}</h4>
                                                 {conv.last_message && (
                                                     <span className="text-xs text-gray-400">
-                                                        {new Date(conv.last_message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        {(() => {
+                                                            let ts = conv.last_message.timestamp
+                                                            if (ts && !ts.endsWith('Z') && !ts.includes('+')) ts += 'Z'
+                                                            return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                                        })()}
                                                     </span>
                                                 )}
                                             </div>
@@ -516,7 +550,11 @@ export default function Chat() {
                                             }`}>
                                             <DecryptedMessage message={msg} />
                                             <p className={`text-[10px] text-right mt-1 ${msg.sender_id === user.id ? 'text-indigo-100' : 'text-gray-400'}`}>
-                                                {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                {(() => {
+                                                    let ts = msg.created_at
+                                                    if (ts && !ts.endsWith('Z') && !ts.includes('+')) ts += 'Z'
+                                                    return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                                })()}
                                                 {msg.sender_id === user.id && msg.status?.read_by?.length > 0 && <span className="ml-1">✓✓</span>}
                                             </p>
                                         </div>

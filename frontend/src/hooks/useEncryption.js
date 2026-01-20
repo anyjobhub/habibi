@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { generateKeyPair, exportKey, importKey, encryptMessage, decryptMessage } from '../utils/encryption'
+import { generateKeyPair, exportKey, importKey, encryptMessage, decryptMessage, generateSymmetricKey, encryptWithSymmetric, encryptSymmetricKey } from '../utils/encryption'
 
 const DB_NAME = 'HabibtiDB'
 const STORE_NAME = 'keys'
@@ -94,16 +94,23 @@ export function useEncryption() {
         return await encryptMessage(content, recipientPublicKeyPem)
     }, [])
 
-    const decrypt = useCallback(async (encryptedPackage) => {
+    const decrypt = useCallback(async (encryptedPackage, recipientKeys = [], userId = null) => {
         if (!keyPair?.privateKey) throw new Error('No private key available')
-        return await decryptMessage(encryptedPackage, keyPair.privateKey)
+        return await decryptMessage(encryptedPackage, keyPair.privateKey, recipientKeys, userId)
     }, [keyPair])
+
+    const encryptSymmKey = useCallback(async (symmetricKey, publicKeyPem) => {
+        return await encryptSymmetricKey(symmetricKey, publicKeyPem)
+    }, [])
 
     return {
         keyPair,
         loading,
         generateAndSaveKeys,
         encrypt,
-        decrypt
+        decrypt,
+        generateSymmetricKey,
+        encryptWithSymmetric,
+        encryptSymmetricKey: encryptSymmKey
     }
 }

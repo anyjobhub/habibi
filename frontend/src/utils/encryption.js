@@ -41,17 +41,13 @@ export async function importKey(pem, type) {
 // Encrypt message for a recipient
 export async function encryptMessage(message, recipientPublicKeyPem) {
     try {
-        // 1. Import recipient's public key
         const publicKey = await importKey(recipientPublicKeyPem, "public")
-
-        // 2. Generate a symmetric key (AES-GCM) for this message
         const symmetricKey = await window.crypto.subtle.generateKey(
             { name: "AES-GCM", length: 256 },
             true,
             ["encrypt", "decrypt"]
         )
 
-        // 3. Encrypt the actual message with symmetric key
         const encoder = new TextEncoder()
         const data = encoder.encode(message)
         const iv = window.crypto.getRandomValues(new Uint8Array(12))
@@ -62,7 +58,6 @@ export async function encryptMessage(message, recipientPublicKeyPem) {
             data
         )
 
-        // 4. Encrypt the symmetric key with recipient's public key
         const rawSymmetricKey = await window.crypto.subtle.exportKey("raw", symmetricKey)
         const encryptedKey = await window.crypto.subtle.encrypt(
             { name: "RSA-OAEP" },
@@ -70,7 +65,6 @@ export async function encryptMessage(message, recipientPublicKeyPem) {
             rawSymmetricKey
         )
 
-        // 5. Package everything
         return {
             content: arrayBufferToBase64(encryptedContent),
             iv: arrayBufferToBase64(iv),
@@ -82,10 +76,55 @@ export async function encryptMessage(message, recipientPublicKeyPem) {
     }
 }
 
+// New Helpers for Multi-Recipient
+export async function generateSymmetricKey() {
+    return await window.crypto.subtle.generateKey(
+        { name: "AES-GCM", length: 256 },
+        true,
+        ["encrypt", "decrypt"]
+    )
+}
+
+export async function encryptWithSymmetric(message, symmetricKey) {
+    const encoder = new TextEncoder()
+    const data = encoder.encode(message)
+    const iv = window.crypto.getRandomValues(new Uint8Array(12))
+
+    const encryptedContent = await window.crypto.subtle.encrypt(
+        { name: "AES-GCM", iv: iv },
+        symmetricKey,
+        data
+    )
+    return {
+        content: arrayBufferToBase64(encryptedContent),
+        iv: arrayBufferToBase64(iv)
+    }
+}
+
+export async function encryptSymmetricKey(symmetricKey, publicKeyPem) {
+    const publicKey = await importKey(publicKeyPem, "public")
+    const rawSymmetricKey = await window.crypto.subtle.exportKey("raw", symmetricKey)
+    return arrayBufferToBase64(await window.crypto.subtle.encrypt(
+        { name: "RSA-OAEP" },
+        publicKey,
+        rawSymmetricKey
+    ))
+}
+
 // Decrypt message
-export async function decryptMessage(encryptedPackage, privateKey) {
+export async function decryptMessage(encryptedPackage, privateKey, recipientKeys = [], userId = null) {
     try {
-        const { content, iv, key } = encryptedPackage
+        let { content, iv, key } = encryptedPackage
+
+        // Strategy upgrade: Look for MY key in recipientKeys if legacy 'key' is missing or we want to prefer it
+        if ((!key || recipientKeys.length > 0) && userId) {
+            const myKeyEntry = recipientKeys.find(k => k.user_id === userId)
+            if (myKeyEntry) {
+                key = myKeyEntry.encrypted_key
+            }
+        }
+
+        if (!key) throw new Error("No encrypted key found for this user")
 
         // 1. Decrypt the symmetric key using private key
         const decryptedKeyRaw = await window.crypto.subtle.decrypt(
