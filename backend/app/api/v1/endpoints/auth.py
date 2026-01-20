@@ -155,8 +155,6 @@ async def login(request: Request, data: OTPRequest):
     return OTPResponse(
         session_id=str(result.inserted_id),
         expires_in=settings.OTP_EXPIRY_MINUTES * 60,
-        session_id=str(result.inserted_id),
-        expires_in=settings.OTP_EXPIRY_MINUTES * 60,
         message=f"OTP sent successfully to {data.email}"
     )
 
@@ -221,8 +219,6 @@ async def resend_otp(request: Request, data: OTPRequest):
     result = await db.otp_sessions.insert_one(otp_session)
     
     return OTPResponse(
-        session_id=str(result.inserted_id),
-        expires_in=settings.OTP_EXPIRY_MINUTES * 60,
         session_id=str(result.inserted_id),
         expires_in=settings.OTP_EXPIRY_MINUTES * 60,
         message=f"OTP resent successfully to {data.email}"
