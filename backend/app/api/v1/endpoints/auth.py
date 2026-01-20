@@ -81,8 +81,8 @@ async def signup(request: Request, data: OTPRequest):
         "verified_at": None,
         "session_token": None,
         "metadata": {
-            "ip_address": req.client.host if req.client else None,
-            "user_agent": req.headers.get("user-agent"),
+            "ip_address": request.client.host if request.client else None,
+            "user_agent": request.headers.get("user-agent"),
             "purpose": data.purpose
         }
     }
@@ -144,8 +144,8 @@ async def login(request: Request, data: OTPRequest):
         "verified_at": None,
         "session_token": None,
         "metadata": {
-            "ip_address": req.client.host if req.client else None,
-            "user_agent": req.headers.get("user-agent"),
+            "ip_address": request.client.host if request.client else None,
+            "user_agent": request.headers.get("user-agent"),
             "purpose": data.purpose
         }
     }
@@ -210,8 +210,8 @@ async def resend_otp(request: Request, data: OTPRequest):
         "verified_at": None,
         "session_token": None,
         "metadata": {
-            "ip_address": req.client.host if req.client else None,
-            "user_agent": req.headers.get("user-agent"),
+            "ip_address": request.client.host if request.client else None,
+            "user_agent": request.headers.get("user-agent"),
             "purpose": data.purpose
         }
     }
