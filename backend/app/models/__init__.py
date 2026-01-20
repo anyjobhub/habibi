@@ -10,7 +10,8 @@ from app.models.user import (
     UserPrivacy,
     DeviceInfo,
     PyObjectId,
-    Gender
+    Gender,
+    AuthResponse
 )
 from app.models.otp import (
     OTPSession,
@@ -63,6 +64,7 @@ __all__ = [
     "DeviceInfo",
     "PyObjectId",
     "Gender",
+    "AuthResponse",
     "OTPSession",
     "OTPRequest",
     "OTPVerifyRequest",
