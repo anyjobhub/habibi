@@ -34,7 +34,7 @@ router = APIRouter()
 
 @router.post("/signup", response_model=OTPResponse, status_code=status.HTTP_200_OK)
 @limiter.limit("5/hour")
-async def signup(request: OTPRequest, req: Request):
+async def signup(request: Request, data: OTPRequest):
     """
     Step 1: Initiate signup process by sending OTP to email
     
@@ -47,7 +47,7 @@ async def signup(request: OTPRequest, req: Request):
     db = await get_database()
     
     # Check if user already exists
-    existing_user = await db.users.find_one({"email": request.email.lower()})
+    existing_user = await db.users.find_one({"email": data.email.lower()})
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -60,7 +60,7 @@ async def signup(request: OTPRequest, req: Request):
     
     # Send OTP via Email
     try:
-        await send_otp_email(request.email, otp, request.purpose)
+        await send_otp_email(data.email, otp, data.purpose)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -71,7 +71,7 @@ async def signup(request: OTPRequest, req: Request):
     expires_at = datetime.utcnow() + timedelta(minutes=settings.OTP_EXPIRY_MINUTES)
     
     otp_session = {
-        "identifier": request.email.lower(),
+        "identifier": data.email.lower(),
         "otp_hash": otp_hashed,
         "attempts": 0,
         "max_attempts": 3,
@@ -83,7 +83,7 @@ async def signup(request: OTPRequest, req: Request):
         "metadata": {
             "ip_address": req.client.host if req.client else None,
             "user_agent": req.headers.get("user-agent"),
-            "purpose": request.purpose
+            "purpose": data.purpose
         }
     }
     
@@ -92,13 +92,13 @@ async def signup(request: OTPRequest, req: Request):
     return OTPResponse(
         session_id=str(result.inserted_id),
         expires_in=settings.OTP_EXPIRY_MINUTES * 60,
-        message=f"OTP sent successfully to {request.email}"
+        message=f"OTP sent successfully to {data.email}"
     )
 
 
 @router.post("/login", response_model=OTPResponse, status_code=status.HTTP_200_OK)
 @limiter.limit("5/hour")
-async def login(request: OTPRequest, req: Request):
+async def login(request: Request, data: OTPRequest):
     """
     Initiate login process by sending OTP to email
     
@@ -110,7 +110,7 @@ async def login(request: OTPRequest, req: Request):
     db = await get_database()
     
     # Check if user exists
-    user = await db.users.find_one({"email": request.email.lower()})
+    user = await db.users.find_one({"email": data.email.lower()})
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -123,7 +123,7 @@ async def login(request: OTPRequest, req: Request):
     
     # Send OTP via Email
     try:
-        await send_otp_email(request.email, otp, request.purpose)
+        await send_otp_email(data.email, otp, data.purpose)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -134,7 +134,7 @@ async def login(request: OTPRequest, req: Request):
     expires_at = datetime.utcnow() + timedelta(minutes=settings.OTP_EXPIRY_MINUTES)
     
     otp_session = {
-        "identifier": request.email.lower(),
+        "identifier": data.email.lower(),
         "otp_hash": otp_hashed,
         "attempts": 0,
         "max_attempts": 3,
@@ -146,7 +146,7 @@ async def login(request: OTPRequest, req: Request):
         "metadata": {
             "ip_address": req.client.host if req.client else None,
             "user_agent": req.headers.get("user-agent"),
-            "purpose": request.purpose
+            "purpose": data.purpose
         }
     }
     
@@ -155,13 +155,15 @@ async def login(request: OTPRequest, req: Request):
     return OTPResponse(
         session_id=str(result.inserted_id),
         expires_in=settings.OTP_EXPIRY_MINUTES * 60,
-        message=f"OTP sent successfully to {request.email}"
+        session_id=str(result.inserted_id),
+        expires_in=settings.OTP_EXPIRY_MINUTES * 60,
+        message=f"OTP sent successfully to {data.email}"
     )
 
 
 @router.post("/resend-otp", response_model=OTPResponse, status_code=status.HTTP_200_OK)
 @limiter.limit("3/hour")
-async def resend_otp(request: OTPRequest, req: Request):
+async def resend_otp(request: Request, data: OTPRequest):
     """
     Resend OTP to email
     
@@ -175,7 +177,7 @@ async def resend_otp(request: OTPRequest, req: Request):
     # Invalidate any existing unverified sessions for this email
     await db.otp_sessions.update_many(
         {
-            "identifier": request.email.lower(),
+            "identifier": data.email.lower(),
             "verified": False
         },
         {
@@ -189,7 +191,7 @@ async def resend_otp(request: OTPRequest, req: Request):
     
     # Send OTP via Email
     try:
-        await send_otp_email(request.email, otp, request.purpose)
+        await send_otp_email(data.email, otp, data.purpose)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -200,7 +202,7 @@ async def resend_otp(request: OTPRequest, req: Request):
     expires_at = datetime.utcnow() + timedelta(minutes=settings.OTP_EXPIRY_MINUTES)
     
     otp_session = {
-        "identifier": request.email.lower(),
+        "identifier": data.email.lower(),
         "otp_hash": otp_hashed,
         "attempts": 0,
         "max_attempts": 3,
@@ -212,7 +214,7 @@ async def resend_otp(request: OTPRequest, req: Request):
         "metadata": {
             "ip_address": req.client.host if req.client else None,
             "user_agent": req.headers.get("user-agent"),
-            "purpose": request.purpose
+            "purpose": data.purpose
         }
     }
     
@@ -221,13 +223,15 @@ async def resend_otp(request: OTPRequest, req: Request):
     return OTPResponse(
         session_id=str(result.inserted_id),
         expires_in=settings.OTP_EXPIRY_MINUTES * 60,
-        message=f"OTP resent successfully to {request.email}"
+        session_id=str(result.inserted_id),
+        expires_in=settings.OTP_EXPIRY_MINUTES * 60,
+        message=f"OTP resent successfully to {data.email}"
     )
 
 
 @router.post("/verify-otp", response_model=OTPVerifyResponse, status_code=status.HTTP_200_OK)
 @limiter.limit("10/minute")
-async def verify_otp_endpoint(request: OTPVerifyRequest, req: Request):
+async def verify_otp_endpoint(request: Request, data: OTPVerifyRequest):
     """
     Step 2: Verify OTP code
     
@@ -240,7 +244,7 @@ async def verify_otp_endpoint(request: OTPVerifyRequest, req: Request):
     
     # Get OTP session
     try:
-        session_id = ObjectId(request.session_id)
+        session_id = ObjectId(data.session_id)
     except:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -279,7 +283,7 @@ async def verify_otp_endpoint(request: OTPVerifyRequest, req: Request):
         )
     
     # Verify OTP
-    if not verify_otp(request.otp, otp_session["otp_hash"]):
+    if not verify_otp(data.otp, otp_session["otp_hash"]):
         # Increment attempts
         await db.otp_sessions.update_one(
             {"_id": session_id},
