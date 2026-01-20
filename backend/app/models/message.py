@@ -4,7 +4,7 @@ Message model and schemas
 
 from pydantic import BaseModel, Field
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 from app.models.user import PyObjectId
 
@@ -46,7 +46,7 @@ class ReadStatus(BaseModel):
 
 class MessageStatus(BaseModel):
     """Message status tracking"""
-    sent_at: datetime = Field(default_factory=datetime.utcnow)
+    sent_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     delivered_to: List[DeliveryStatus] = Field(default_factory=list)
     read_by: List[ReadStatus] = Field(default_factory=list)
 
@@ -75,7 +75,7 @@ class Message(BaseModel):
     deleted_for_everyone: bool = False
     deleted_at: Optional[datetime] = None
     
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     class Config:
         populate_by_name = True

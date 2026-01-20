@@ -14,6 +14,8 @@ const DecryptedMessage = ({ message }) => {
 
     useEffect(() => {
         let mounted = true
+        if (!message || !user) return // Wait for user context
+
         const process = async () => {
             // If deleted for everyone
             if (message.is_deleted) {
@@ -22,38 +24,43 @@ const DecryptedMessage = ({ message }) => {
             }
 
             try {
-                // If it's a media message with caption or just media
-                if (message.content_type === 'image' || message.content_type === 'video') {
-                    if (message.encrypted_content) {
-                        let payload = message.encrypted_content
-                        if (typeof payload === 'string') {
-                            try { payload = JSON.parse(payload) } catch { }
-                        }
-                        const text = await decrypt(payload, message.recipient_keys, user.id)
-                        if (mounted) setContent(text)
-                    } else {
-                        if (mounted) setContent('')
+                const payload = message.encrypted_content
+                let parsedPayload = payload
+
+                // Parse if stringified JSON
+                if (typeof payload === 'string') {
+                    // Try parsing as JSON first (our new standard)
+                    try {
+                        parsedPayload = JSON.parse(payload)
+                    } catch {
+                        // If parse fails, assume it's legacy raw base64 string or unexpected
+                        // We will let decrypt handle it or fail
                     }
-                } else {
-                    let payload = message.encrypted_content
-                    if (typeof payload === 'string') {
-                        try { payload = JSON.parse(payload) } catch { }
-                    }
-                    const text = await decrypt(payload, message.recipient_keys, user.id)
-                    if (mounted) setContent(text)
+                }
+
+                const text = await decrypt(parsedPayload, message.recipient_keys, user.id)
+                if (mounted) {
+                    setContent(text)
+                    setError(false)
                 }
             } catch (err) {
                 if (mounted) {
+                    console.warn("Decryption failed for msg:", message.id, err)
                     setError(true)
-                    setContent('🔒 Decryption failed')
+                    setContent('')
                 }
             }
         }
         process()
         return () => { mounted = false }
-    }, [message, decrypt])
+    }, [message, decrypt, user])
 
-    if (error) return <span className="text-red-500 italic text-xs">{content}</span>
+    if (error) return (
+        <div className="flex items-center gap-1 text-gray-400 text-xs italic" title="Message unavailable (decryption failed)">
+            <span>🔒</span>
+            <span>Message unavailable</span>
+        </div>
+    )
     if (message.is_deleted) return <span className="text-gray-500 italic text-sm">{content}</span>
 
     return (
