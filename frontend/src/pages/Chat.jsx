@@ -23,17 +23,22 @@ const DecryptedMessage = ({ message }) => {
             try {
                 // If it's a media message with caption or just media
                 if (message.content_type === 'image' || message.content_type === 'video') {
-                    // The encrypted_content might be just text caption or empty.
-                    // The actual media URL is in metadata.
-                    // We still decrypt the "content" if it exists (caption)
                     if (message.encrypted_content) {
-                        const text = await decrypt(message.encrypted_content)
+                        let payload = message.encrypted_content
+                        if (typeof payload === 'string') {
+                            try { payload = JSON.parse(payload) } catch { }
+                        }
+                        const text = await decrypt(payload)
                         if (mounted) setContent(text)
                     } else {
                         if (mounted) setContent('')
                     }
                 } else {
-                    const text = await decrypt(message.encrypted_content)
+                    let payload = message.encrypted_content
+                    if (typeof payload === 'string') {
+                        try { payload = JSON.parse(payload) } catch { }
+                    }
+                    const text = await decrypt(payload)
                     if (mounted) setContent(text)
                 }
             } catch (err) {
@@ -316,7 +321,7 @@ export default function Chat() {
             // 3. Send API
             const { data } = await api.post('/messages', {
                 conversation_id: conversationId,
-                encrypted_content: encrypted, // Caption
+                encrypted_content: JSON.stringify(encrypted), // Caption
                 content_type: mediaFile ? mediaType : 'text',
                 recipient_keys: [],
                 media_url: mediaUrl,

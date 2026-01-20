@@ -130,11 +130,17 @@ function arrayBufferToBase64(buffer) {
 }
 
 function base64ToArrayBuffer(base64) {
-    const binary_string = window.atob(base64)
-    const len = binary_string.length
-    const bytes = new Uint8Array(len)
-    for (let i = 0; i < len; i++) {
-        bytes[i] = binary_string.charCodeAt(i)
+    if (!base64 || typeof base64 !== 'string') return new ArrayBuffer(0)
+    try {
+        const binary_string = window.atob(base64)
+        const len = binary_string.length
+        const bytes = new Uint8Array(len)
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i)
+        }
+        return bytes.buffer
+    } catch (e) {
+        console.error("Invalid base64", e)
+        return new ArrayBuffer(0)
     }
-    return bytes.buffer
 }
