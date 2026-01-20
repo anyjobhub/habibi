@@ -84,7 +84,7 @@ const DecryptedMessage = ({ message }) => {
 export default function Chat() {
     const { conversationId } = useParams()
     const { user } = useAuth()
-    const { lastMessage, sendMessage: sendWSMessage, usingPolling } = useWS()
+    const { lastMessage, sendMessage: sendWSMessage, usingPolling, isConnected } = useWS()
     const { encrypt } = useEncryption()
     const navigate = useNavigate()
 
