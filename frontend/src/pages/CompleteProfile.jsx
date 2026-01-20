@@ -12,7 +12,9 @@ export default function CompleteProfile() {
         address: '',
         date_of_birth: '',
         gender: 'prefer_not_to_say',
-        bio: ''
+        bio: '',
+        password: '',
+        confirm_password: ''
     })
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
@@ -30,6 +32,17 @@ export default function CompleteProfile() {
     const handleSubmit = async (e) => {
         e.preventDefault()
         setError('')
+
+        // Password validation
+        if (formData.password.length < 8) {
+            setError('Password must be at least 8 characters long')
+            return
+        }
+        if (formData.password !== formData.confirm_password) {
+            setError('Passwords do not match')
+            return
+        }
+
         setLoading(true)
 
         try {
@@ -37,9 +50,12 @@ export default function CompleteProfile() {
             const publicKeyPem = await generateAndSaveKeys()
 
             // 2. Submit Profile
+            // Remove confirm_password before sending
+            const { confirm_password, ...profileData } = formData
+
             const response = await api.post(`/auth/complete-signup?temp_token=${tempToken}`, {
                 email,
-                ...formData,
+                ...profileData,
                 public_key: publicKeyPem,
                 device_info: {
                     device_id: crypto.randomUUID(),
@@ -126,6 +142,35 @@ export default function CompleteProfile() {
                                 required
                             />
                             <p className="text-xs text-gray-500 mt-1">Must be 13+ years old</p>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-2">Password *</label>
+                            <input
+                                type="password"
+                                name="password"
+                                className="input"
+                                placeholder="••••••••"
+                                value={formData.password}
+                                onChange={handleChange}
+                                minLength={8}
+                                required
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Min. 8 characters</p>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-2">Confirm Password *</label>
+                            <input
+                                type="password"
+                                name="confirm_password"
+                                className="input"
+                                placeholder="••••••••"
+                                value={formData.confirm_password}
+                                onChange={handleChange}
+                                minLength={8}
+                                required
+                            />
                         </div>
                     </div>
 

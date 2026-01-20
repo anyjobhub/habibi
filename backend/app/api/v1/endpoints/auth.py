@@ -14,7 +14,8 @@ from app.models import (
     OTPVerifyResponse,
     UserCreate,
     UserDetailResponse,
-    AuthResponse
+    AuthResponse,
+    PasswordLoginRequest
 )
 from app.core import (
     get_database,
@@ -23,7 +24,9 @@ from app.core import (
     verify_otp,
     create_access_token,
     decode_access_token,
-    settings
+    settings,
+    hash_password,
+    verify_password
 )
 from app.core.rate_limit import limiter
 from app.utils.sanitization import sanitize_text, sanitize_username
@@ -157,6 +160,82 @@ async def login(request: Request, data: OTPRequest):
         session_id=str(result.inserted_id),
         expires_in=settings.OTP_EXPIRY_MINUTES * 60,
         message=f"OTP sent successfully to {data.email}"
+    )
+
+
+@router.post("/login-password", response_model=AuthResponse, status_code=status.HTTP_200_OK)
+@limiter.limit("5/minute")
+async def login_password(request: Request, data: PasswordLoginRequest):
+    """
+    Login with Email/Username and Password
+    
+    - Supports both email and username
+    - Validates password
+    - Returns access token
+    - Rate limited to 5 attempts per minute
+    """
+    db = await get_database()
+    
+    identifier = data.identifier.lower()
+    
+    # distinct query for email or username
+    user = await db.users.find_one({
+        "$or": [
+            {"email": identifier},
+            {"username": identifier}  # Check username match (case-sensitive normally, but sanitized)
+        ]
+    })
+    
+    if not user:
+        # Check if username exists (if identifier wasn't email)
+        if "@" not in identifier:
+             user = await db.users.find_one({"username": data.identifier}) # try raw username
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials"
+        )
+        
+    if not user.get("hashed_password"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password login not set up for this account. Please use OTP login."
+        )
+
+    if not verify_password(data.password, user["hashed_password"]):
+         raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials"
+        )
+        
+    # Generate session token
+    access_token = create_access_token(
+        data={
+            "user_id": str(user["_id"]),
+            "username": user["username"],
+            "email": user["email"]
+        }
+    )
+    
+    # Update last login
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {"$set": {"status.online": True, "status.last_seen": datetime.utcnow()}}
+    )
+    
+    return AuthResponse(
+        user=UserDetailResponse(
+            id=str(user["_id"]),
+            email=user["email"],
+            username=user["username"],
+            profile=UserProfile(**user["profile"]),
+            privacy=UserPrivacy(**user["privacy"]),
+            devices=user["devices"],
+            status=user["status"]
+        ),
+        access_token=access_token,
+        token_type="bearer"
     )
 
 
@@ -403,7 +482,8 @@ async def complete_signup(user_data: UserCreate, temp_token: str):
         ),
         privacy=UserPrivacy(),
         encryption=UserEncryption(public_key=user_data.public_key),
-        devices=[user_data.device_info]
+        devices=[user_data.device_info],
+        hashed_password=hash_password(user_data.password)
     )
     
     user_dict = user.model_dump(by_alias=True, exclude={"id"})

@@ -108,7 +108,11 @@ class User(BaseModel):
     encryption: UserEncryption
     devices: List[DeviceInfo] = Field(default_factory=list)
     status: UserStatus = Field(default_factory=UserStatus)
+    encryption: UserEncryption
+    devices: List[DeviceInfo] = Field(default_factory=list)
+    status: UserStatus = Field(default_factory=UserStatus)
     metadata: UserMetadata = Field(default_factory=UserMetadata)
+    hashed_password: Optional[str] = None
     
     class Config:
         populate_by_name = True
@@ -139,6 +143,7 @@ class UserCreate(BaseModel):
     """Schema for creating a new user (after OTP verification)"""
     email: EmailStr
     username: str = Field(..., min_length=3, max_length=30, pattern=r'^[a-zA-Z0-9_]+$')
+    password: str = Field(..., min_length=8, description="Password for login")
     
     # Mandatory profile fields
     full_name: str = Field(..., min_length=2, max_length=100)
@@ -243,4 +248,11 @@ class AuthResponse(BaseModel):
     """Authentication response with token"""
     user: UserDetailResponse
     access_token: str
+    access_token: str
     token_type: str = "bearer"
+
+
+class PasswordLoginRequest(BaseModel):
+    """Request schema for password-based login"""
+    identifier: str  # Email or Username
+    password: str
