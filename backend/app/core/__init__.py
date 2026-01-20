@@ -9,7 +9,9 @@ from app.core.security import (
     generate_otp,
     hash_otp,
     verify_otp,
-    generate_session_token
+    generate_session_token,
+    hash_password,
+    verify_password
 )
 
 __all__ = [
@@ -28,4 +30,6 @@ __all__ = [
     "hash_otp",
     "verify_otp",
     "generate_session_token",
+    "hash_password",
+    "verify_password",
 ]
